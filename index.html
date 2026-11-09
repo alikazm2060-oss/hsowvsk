@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مشغل البث المباشر - بي ان سبورت</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --accent: #e11d48;
+            --accent-hover: #be123c;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand img {
+            width: 42px;
+            height: 42px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .brand h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 320px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            outline: none;
+            font-size: 0.95rem;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 20px;
+            padding: 20px 25px;
+            flex: 1;
+            max-width: 1500px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 992px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .player-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            background-color: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16 / 9;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .now-playing {
+            background-color: var(--bg-card);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .now-playing-info h2 {
+            font-size: 1.15rem;
+            margin-bottom: 4px;
+        }
+
+        .now-playing-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .status-badge {
+            background-color: rgba(225, 29, 72, 0.15);
+            color: #fb7185;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .sidebar {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            max-height: 75vh;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .channel-count {
+            background-color: var(--bg-main);
+            color: var(--text-muted);
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .channels-list {
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .channel-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .channel-item:hover {
+            background-color: var(--bg-hover);
+        }
+
+        .channel-item.active {
+            background-color: rgba(225, 29, 72, 0.15);
+            border-color: var(--accent);
+        }
+
+        .channel-item img {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+            background-color: #000;
+        }
+
+        .channel-details {
+            flex: 1;
+        }
+
+        .channel-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 3px;
+        }
+
+        .channel-type {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .error-msg {
+            color: #fb7185;
+            font-size: 0.85rem;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <img src="https://lh3.googleusercontent.com/-muDRs7JtZ88/aJ_tkPsOxcI/AAAAAAAAQ24/I_KmTGW4c0I9vytZaNy-P3ad7CHtSEmPwCNcBGAsYHQ/w250/0.jpg=w250" alt="Logo">
+            <h1>بى ان سبورت FHD H265</h1>
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="ابحث عن قناة...">
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="player-section">
+            <div class="video-wrapper">
+                <video id="videoPlayer" controls autoplay playsinline></video>
+            </div>
+            <div class="now-playing">
+                <div class="now-playing-info">
+                    <h2 id="currentChannelName">اختر قناة للبدء</h2>
+                    <p id="currentChannelUrl">جاهز للتشغيل</p>
+                    <p id="errorMsg" class="error-msg"></p>
+                </div>
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    <span>بث مباشر</span>
+                </div>
+            </div>
+        </div>
+
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span>قائمة القنوات</span>
+                <span class="channel-count" id="channelCount">10</span>
+            </div>
+            <div class="channels-list" id="channelsList"></div>
+        </aside>
+    </div>
+
+    <script>
+        const channelsData = [
+            {
+                id: "4128",
+                name: "بي ان سبورت 1",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-XoVqFdrlBHI/aKAB4A9q9QI/AAAAAAAASW0/9Q1pWSA6WT4ZGKpwianIP_ObJWEQ8-d6gCNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www.maziika.shop/x1/1_4.json?token=d044cb5478fc4771d4ae4ffd0299920bb42103c373272d95562448be14021695&expires=1780186953"
+            },
+            {
+                id: "4129",
+                name: "بي ان سبورت 2",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-vN-5dc2pt1o/aKAB63nu2lI/AAAAAAAASW8/JrKVuKPV92od8aRz0I0u-T1hCsDjcxgBwCNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www.maziika.shop/x1/2_4.json?token=5e3bbb60b9e24661e4532c95326c2d5d12f69832ee52ad0f20dbc4159af9c0ce&expires=1780186953"
+            },
+            {
+                id: "4132",
+                name: "بي ان سبورت 3",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-_CsKiBSKVRY/aRrfAPZmm5I/AAAAAAAAU6g/D0DCSLBOMZcJpI8POaE7i3IMPFdKuDLogCNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www2.maziika.shop/x1/3_4.json?token=41a18c5abc36fd8d0f6c289ca45c17ac41932b9875f14c66c36c7776bdc5bc49&expires=1780186953"
+            },
+            {
+                id: "4134",
+                name: "بي ان سبورت 4",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-luT0rBmPWRY/aRre-WJWduI/AAAAAAAAU6I/M9_46wfgQds00m7mDkqKPTK6eSy_hcuFQCNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www.maziika.shop/x1/4_4.json?token=617ac3dd6fd6d7addf7c88751a435295e99d3e467cd0978fa2e9f0996863d299&expires=1780186953"
+            },
+            {
+                id: "4136",
+                name: "بي ان سبورت 5",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-CR1idx2Ayns/aJ_KbJnS-0I/AAAAAAAAL84/DVca_959TpgckCRpn2UaF7FXZHde4QGqgCNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www2.maziika.shop/x1/5_4.json?token=f5a32fe7e0a3b8749ecb605b35abe56c400bff1db42925aa54a4c4de7cda4722&expires=1780186953"
+            },
+            {
+                id: "4138",
+                name: "بي ان سبورت 6",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-uJ9WsaFFhM8/aKAB7sWlLpI/AAAAAAAASXE/r8JxJ_CXoXcoOGx20yVokdlfq_ifzZbYwCNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www2.maziika.shop/x1/6_4.json?token=4ffa3e4977f5e40446368b2e76cf43dc70efcdb6aa6005a5a2ba97e789b42f34&expires=1780186953"
+            },
+            {
+                id: "4139",
+                name: "بي ان سبورت 7",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-GD3eXyj41TU/aJ_KccixGhI/AAAAAAAAL9o/LJvBetMexxsdWrJJDv7TkEUO9CWPyCYKgCNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www.maziika.shop/x1/7_4.json?token=bb086c9500a0fe0dbe35dcecfd7c39ac7d9a8a1d1f0237f892311646f16b6afd&expires=1780186953"
+            },
+            {
+                id: "4170",
+                name: "بي ان سبورت 8",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-PhS8Znj6RB8/aRrfC-TF9JI/AAAAAAAAU7U/-yZ2TySw1NcBerZha0YDbXwN5hx-KwrSACNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www2.maziika.shop/x1/8_4.json?token=4c0d751c1fb43f5dcce6463309f6a4cdd8c685c46b26430f75666036bb2964a4&expires=1780186953"
+            },
+            {
+                id: "4967",
+                name: "بي ان سبورت 9",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/--hbmHgCarFk/aKACUeJKsTI/AAAAAAAASaA/1GOCkYE47zowYgaZADk1Qcy6f6qkIpvJACNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www.maziika.shop/x1/9_4.json?token=e5fa2e12b966f08ea32cbd12d17364806703ccd011c2002c2087e52898699667&expires=1780186953"
+            },
+            {
+                id: "87504",
+                name: "بي ان سبورت اتش دى",
+                type: "live",
+                image: "https://lh3.googleusercontent.com/-mjiIe0dSwuk/aRrj9a0aQjI/AAAAAAAAVqc/a48BF5J7trQvCffygagU2A-sZW7_du8FACNcBGAsYHQ/w250/0.jpg=w250",
+                source: "https://www.maziika.shop/x6/159.json?token=1cb84b67f9d9153e57bbe7f8c972b7fc6f4f812c1414d8ac3a19e26eb94228f6&expires=1780186953"
+            }
+        ];
+
+        const video = document.getElementById('videoPlayer');
+        const channelsList = document.getElementById('channelsList');
+        const searchInput = document.getElementById('searchInput');
+        const currentChannelName = document.getElementById('currentChannelName');
+        const currentChannelUrl = document.getElementById('currentChannelUrl');
+        const errorMsg = document.getElementById('errorMsg');
+        const channelCount = document.getElementById('channelCount');
+
+        let hls = null;
+
+        function playChannel(channel, element) {
+            document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+            if (element) element.classList.add('active');
+
+            currentChannelName.textContent = channel.name;
+            currentChannelUrl.textContent = "جاري تحميل البث...";
+            errorMsg.style.display = 'none';
+
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+
+            const streamUrl = channel.source;
+
+            if (Hls.isSupported()) {
+                hls = new Hls();
+                hls.loadSource(streamUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    currentChannelUrl.textContent = "متصل - جودة عالية";
+                    video.play().catch(e => console.log("Auto-play prevented:", e));
+                });
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        errorMsg.textContent = "تعذر تشغيل البث مباشرة في المتصفح (قد يتطلب السيرفر User-Agent مخصص أو تعطيل CORS).";
+                        errorMsg.style.display = 'block';
+                        currentChannelUrl.textContent = "خطأ في الاتصال بالبث";
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = streamUrl;
+                video.addEventListener('loadedmetadata', function () {
+                    currentChannelUrl.textContent = "متصل - جودة عالية";
+                    video.play();
+                });
+            } else {
+                video.src = streamUrl;
+            }
+        }
+
+        function renderChannels(list) {
+            channelsList.innerHTML = '';
+            channelCount.textContent = list.length;
+
+            list.forEach((channel, index) => {
+                const item = document.createElement('div');
+                item.className = 'channel-item';
+                item.innerHTML = `
+                    <img src="${channel.image}" alt="${channel.name}" loading="lazy">
+                    <div class="channel-details">
+                        <div class="channel-name">${channel.name}</div>
+                        <div class="channel-type">بث مباشر • FHD H265</div>
+                    </div>
+                `;
+                item.addEventListener('click', () => playChannel(channel, item));
+                channelsList.appendChild(item);
+
+                if (index === 0 && !currentChannelName.dataset.loaded) {
+                    currentChannelName.dataset.loaded = "true";
+                    playChannel(channel, item);
+                }
+            });
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.trim().toLowerCase();
+            const filtered = channelsData.filter(ch => ch.name.toLowerCase().includes(term));
+            renderChannels(filtered);
+        });
+
+        renderChannels(channelsData);
+    </script>
+</body>
+</html>
